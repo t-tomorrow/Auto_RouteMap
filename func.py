@@ -11,7 +11,7 @@ once = True
 file_count = 0
 
 
-def findShip(base_files, out_dir, range_n=10, threshold=245):
+def findShip(base_files, out_dir, range_n=10, threshold=0):
     global once, file_count
     files = base_files
     os.mkdir(out_dir)
@@ -99,6 +99,8 @@ def findShip(base_files, out_dir, range_n=10, threshold=245):
 
 
     #-------------------------------------------------------------------------------------------
+    # 加算画像（現在使用しないのでコメントアウト）
+    """
     file_count = 0
     once = True
     base = base_files
@@ -131,7 +133,106 @@ def findShip(base_files, out_dir, range_n=10, threshold=245):
         base_file = cv2.cvtColor(base_file, cv2.COLOR_RGB2BGR)
 
         cv2.imwrite(add_dir + "add_img_" + "{:03}".format(file_count) + ".jpg", base_file)
+    """
     print("\nEND")
+
+
+
+    #調査画像からmode関数で作った画像の画素を引く
+#threshold:閾値。デフォルトは０。
+def sub(files, model, out, threshold_bottom=0, threshold_top=255, num=3, k=3):
+    global once, file_count
+    if not ((0<=threshold_bottom) and (threshold_bottom<=255) and (0<=threshold_top) and (threshold_top<=255)):
+        print("閾値の設定が不適切です。閾値を0に設定します。")
+        threshold_bottom = 0
+        threshold_top = 255
+
+    base_file = cv2.imread(model, 0)
+    #フォルダ内にある画像を使う
+    print("差分画像作成中・・・")
+    os.mkdir(out)
+    for file in tqdm(files):
+        file_count += 1
+        file = cv2.imread(file, 0)
+        if once == True:
+            #初期化
+            out_img = np.array([[0 for i in range(len(file[0]))] for j in range(len(file))])
+            once = False
+
+        if file.shape == base_file.shape:
+            #わかりやすいように黒地に白→白地に黒へ変換し、黒の濃さで操作を行う
+            for i in range(len(file)):
+                for j in range(len(file[0])):                    
+                    out_img[i][j] = int(255 - file[i][j]) - int(255 - base_file[i][j])
+                    #line = "i:" + str(i) + ",j:" + str(j) + "  :" + str(out_img[i][j])
+                    #print(line)
+                    
+                    if out_img[i][j] < 0:
+                        out_img[i][j] = 0
+
+#---------------------------------------------------------------------------------
+                    #閾値設定時
+                    if  (int(threshold_bottom) <= out_img[i][j]) and (out_img[i][j] <= int(threshold_top)):
+                        out_img[i][j] = 255 - out_img[i][j]
+                    else:
+                        out_img[i][j] = 255
+                    #line = "i:" + str(i) + ",j:" + str(j) + "  :" + str(255 - out_img[i][j]) + "\n"
+                    #print(line)
+                    #open_file(line, "sub.txt")
+#----------------------------------------------------------------------------------
+        else:
+            print("画像のサイズが異なっています。")
+
+
+        #平滑化処理を(num)回行う
+        for i in range(num):
+            out_img = cv2.medianBlur(out_img.astype(np.float32), ksize=k)
+            #out_img = cv2.GaussianBlur(out_img.astype(np.float32), ksize=(3,3), sigmaX=1.3)
+        
+        cv2.imwrite(out + "\\out_img_" + "{:02}".format(file_count) + ".jpg", out_img)
+    print("\nEND")
+
+
+#船と思われる部分に色を加える
+def add(base, over, output):
+    global file_count
+    #フォルダ内にある画像を使う
+    print("元画像と差分画像との合成画像作成中・・・")
+    os.mkdir(output)
+    for base_file, over_file in tqdm(zip(base, over), total=len(base)):
+    #for base_file, over_file in zip(base, over):
+        file_count += 1
+        base_file = cv2.imread(base_file)
+        over_file = cv2.imread(over_file)
+        base_file = cv2.cvtColor(base_file, cv2.COLOR_BGR2RGB)
+        over_file = cv2.cvtColor(over_file, cv2.COLOR_BGR2RGB)
+
+        cv2.imshow('image',base_file)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        cv2.imshow('image',over_file)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        if base_file.shape == over_file.shape:
+            #わかりやすいように黒地に白→白地に黒へ変換し、黒の濃さを足していく
+            for i in range(len(base_file)):
+                for j in range(len(base_file[0])):
+                    #print("1:   i:" + str(i) + ",j:" + str(j) + ":   " + str(255 - over_file[i][j]))
+                    if 255 - int(over_file[i][j][0]) > 0:
+                        base_file[i][j][0] = 255 - over_file[i][j][0]   #R
+                        base_file[i][j][1] = 0                        #G
+                        base_file[i][j][2] = 0                        #B
+                    #print("2:   i:" + str(i) + ",j:" + str(j) + ":   " + str(255 - base_file[i][j]))
+                    #print("\n")
+        else:
+            print("画像のサイズが異なっています。")
+
+        base_file = cv2.cvtColor(base_file, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(output + "\\last_img_" + "{:02}".format(file_count) + ".jpg", base_file)
+    print("\nEND")
+
 
 
 
@@ -225,7 +326,7 @@ def sub(files, model, out, threshold_bottom=0, threshold_top=255, num=3, k=3):
     base_file = cv2.imread(model, 0)
     #フォルダ内にある画像を使う
     print("差分画像作成中・・・")
-    os.mkdir(out)
+    #os.mkdir(out)
     for file in tqdm(files):
         file_count += 1
         file = cv2.imread(file, 0)

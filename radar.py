@@ -3,16 +3,19 @@ import func, func2
 import numpy as np
 
 #入力する画像データ（元画像群）
-input_files = glob.glob(".\\images2\\*")
+input_files = glob.glob(".\\images100\\*")
 #関数addの結果ファイルの出力先
-output_dir = ".\\images2_001"
+output_dir = ".\\study/kmean3_num2"             #研究用
 #ピクセルの黒の度合いを何分割(n分割)して、最頻値・期待値を求めるか（階級:0~n-1, n~2n-1, ... ~255)
 range_n = 10
 #ピクセルの黒の度合いの閾値
-threshold_bottom = 247
+threshold_bottom = 130
+
+model = "./study/model.jpg"
 
 #レーダー画像から船舶を検出する
 #func.findShip(input_files, output_dir, range_n, threshold_bottom)
+#func.sub(input_files, model, output_dir, threshold_bottom=130, threshold_top=170, num=2, k=3)
 
 
 
@@ -58,8 +61,8 @@ k_size = 3      #平滑化する際のフィルターのサイズ
 #func.median_filter(".\\output5_k5median3.jpg", "output5_k5median4.jpg")
 
 #レーダー画像から船を四角で囲む
-#func2.exploler_dir(glob.glob(".\\outputMax_sub_130-170_k3median1\*"))          
-func2.exploler_dir2(glob.glob(".\\outputMax_sub_130-170_k5median3\*"))              #<--------------panasonic用
+out_dir = ".\\plot\k3median1"
+func2.exploler_dir(glob.glob(".\\outputMax_sub_130-170_k3median1\*"), out_dir)
 
 #func2.exploler(".\\outputMax_sub_130-170_k5median3\\out_img_14.jpg", "outputMax_sub_130-170_k5median3\\out_img_15.jpg")
 #func2. encircle(".\\output5_k5median3.jpg", ".\\a")

@@ -14,11 +14,18 @@ plot_count = 0
 first_flag = True
 different_color = 0
 
+# 進行方向として正しいように変更するための変数
+point_num = 0                           #
+route_cnt = 0
+Route_num = (([0] * 1) * 2)             #a[1][2]の初期化    １つめはルートの数、２つ目は影の場所(point_num)を保存
+Route_Flag = False
+
+
+
+
 #複数の画像を読み込んで探索し、探索結果をベースファイルに書き込む
 #入力ファイルは平滑化後のファイル群
-def exploler_dir(files):
-
-    out_dir = ".\\plot\k3median1"
+def exploler_dir(files, out_dir):
     base_files = glob.glob(".\\images2\*")
     os.mkdir(out_dir)
 
@@ -32,25 +39,6 @@ def exploler_dir(files):
         b_file2 = next(it2)
         exploler(file1, file2, b_file2, out_dir)
         file1 = file2
-
-
-def exploler_dir2(files):
-
-    out_dir = ".\\plot\Route_map"
-    base_files = glob.glob(".\\images2\*")
-    os.mkdir(out_dir)
-
-    it1 = iter(files)
-    it2 = iter(base_files)
-    file1 = next(it1)
-    b_file1 = next(it2)
-
-    for i in tqdm(range(len(files) -1)):
-        file2 = next(it1)
-        b_file2 = next(it2)
-        exploler(file1, file2, b_file2, out_dir)
-        file1 = file2
-
 
 
 
@@ -141,7 +129,7 @@ def exploler(file1, file2, b_file=".\\images2_001\model.jpg", out_dir = ".\\plot
             num_nowShip.append(predicted_ship1[i][0])
             num_nextShip.append(predicted_ship1[i][1])
             predicted_ship2.append([predicted_ship1[i][0], predicted_ship1[i][1], predicted_ship1[i][2]])
-            #print(str(predicted_ship2[cnt][0]) + " -----> " + str(predicted_ship2[cnt][1]) + "  \t予想度合：" + str(predicted_ship2[cnt][2]))
+            print(str(predicted_ship2[cnt][0]) + " -----> " + str(predicted_ship2[cnt][1]) + "  \t予想度合：" + str(predicted_ship2[cnt][2]))
             cnt += 1
 
     #予想された船同士を線でつなぎ、モデル図に反映させる
