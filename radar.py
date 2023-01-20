@@ -25,14 +25,14 @@ model = "./study/model.jpg"
 #モジュール
 #---------------------------------------------------------------------------------------------------------------
 #入力する画像データ（元画像）
-input_files = glob.glob(".\\images2_40piece\\*")
+input_files = glob.glob("./images100/*")
 #入力するモデルデータ(".\\modelMode_max.jpg" or ".\\modelMode_expect.jpg")
-model_file = ".\\images2_001\\model.jpg"
+model_file = "./study/model.jpg"
 #関数subの結果ファイルの出力先
-output_sub_destination = ".\\outputMax_sub_130-170_k3median5"
+output_sub_destination = "./study/k5n3_100"
 #output_sub_destination = glob.glob(".\\outputMax_sub_130-170_k5median5\\*")
 #関数addの結果ファイルの出力先
-output_add_destination = ".\\outputMax_add3_130-170_median"
+#output_add_destination = ".\\outputMax_add3_130-170_median"
 
 #モデル画像作成
 #func.average(files)
@@ -52,30 +52,7 @@ k_size = 3      #平滑化する際のフィルターのサイズ
 #func.add(input_files, output_sub_destination, output_add_destination)
 
 
-
-#一つの画像に対する画素値を求める（確認用）
-#func.dot_image(".\\output5_k5median3.jpg", "output5_k5median3.txt", "output5_k5median3_2.jpg")
-
-
-#平滑化処理
-#func.median_filter(".\\output5_k5median3.jpg", "output5_k5median4.jpg")
-
 #レーダー画像から船を四角で囲む
-out_dir = ".\\plot\k3median1"
-func2.exploler_dir(glob.glob(".\\outputMax_sub_130-170_k3median1\*"), out_dir)
+out_dir = ".\\study\out_Dir_100"
+func2.exploler_dir(glob.glob(".\\study\k5n3_100\*"), out_dir)
 
-#func2.exploler(".\\outputMax_sub_130-170_k5median3\\out_img_14.jpg", "outputMax_sub_130-170_k5median3\\out_img_15.jpg")
-#func2. encircle(".\\output5_k5median3.jpg", ".\\a")
-
-vecA = np.array([1, 2])
-p1 = [2, 2] #Trueがかえってこればよい
-p2 = [5, 1] #False
-#func2.isInArea(vecA, p2)
-
-"""
-# 画像同士で合成したい場合・・・
-a = glob.glob(".\\a\\*")
-b = glob.glob(".\\b\\*")
-func.add(a, b, ".\\c")
-"""
-#----------------------------------------------------------------------------------------------------

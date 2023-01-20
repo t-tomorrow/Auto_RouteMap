@@ -13,21 +13,29 @@ cnt = 0
 plot_count = 0
 first_flag = True
 different_color = 0
+ 
 
 # 進行方向として正しいように変更するための変数
-point_num = 0                           #
+static_point_num = []                     #ルートごとのポイントにおける先頭の値を保存
 route_cnt = 0
-Route_num = (([0] * 1) * 2)             #a[1][2]の初期化    １つめはルートの数、２つ目は影の場所(point_num)を保存
-Route_Flag = False
+Route_num = [[] for i in range(1000)]            #ルートの数がどのくらい出現するのかわからないため、1000個の配列を用意
+route_lastPoint = 0  #個別のルートを表示する際に使用。最終地点を保存する変数
 
+#１枚目のベクトルデータを保存
+save_vec = [[0 for i in range(2)] for j in range(50)]
 
+# 選択した個別の船舶の航路を表示するための変数
+draw_point = []
+draw_Arrow_point = []
 
 
 #複数の画像を読み込んで探索し、探索結果をベースファイルに書き込む
 #入力ファイルは平滑化後のファイル群
 def exploler_dir(files, out_dir):
-    base_files = glob.glob(".\\images2\*")
-    os.mkdir(out_dir)
+    base_files = glob.glob(".\\images\*")
+
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
 
     it1 = iter(files)
     it2 = iter(base_files)
@@ -37,8 +45,14 @@ def exploler_dir(files, out_dir):
     for i in tqdm(range(len(files) -1)):
         file2 = next(it1)
         b_file2 = next(it2)
-        exploler(file1, file2, b_file2, out_dir)
+        route_map = exploler(file1, file2, b_file2, out_dir)
         file1 = file2
+
+    draw_ArrowImg(route_map, out_dir)
+
+
+
+    
 
 
 
@@ -132,20 +146,78 @@ def exploler(file1, file2, b_file=".\\images2_001\model.jpg", out_dir = ".\\plot
             print(str(predicted_ship2[cnt][0]) + " -----> " + str(predicted_ship2[cnt][1]) + "  \t予想度合：" + str(predicted_ship2[cnt][2]))
             cnt += 1
 
+
+    global first_flag
+    global save_vec
+    #船の進行方向として正しい動作をさせるための関数
+    save_route(predicted_ship2, contours1, contours2)
+
+    save_vec.clear()
+    save_vec = [[[] for i in range(2)] for j in range(len(contours1))]
+    for i in range(len(predicted_ship2)):
+        save_vec[i][0] = [predicted_ship2[i][0], predicted_ship2[i][1]]
+        x1, y1, w1, h1 = cv2.boundingRect(contours1[predicted_ship2[i][0]])
+        x2, y2, w2, h2 = cv2.boundingRect(contours2[predicted_ship2[i][1]])
+        save_vec[i][1] = np.array([int((x2 + w2/2) - (x1 + w1/2)), int((y2 + h2/2) - (y1 + h1/2))])
+
     #予想された船同士を線でつなぎ、モデル図に反映させる
     #line(base_file, file2, predicted_ship2, contours1, contours2, save_dir)
     
     #応急処置
-    global first_flag
     if first_flag == True:
-        Route_map(base_file, file2, predicted_ship2, contours1, contours2, save_dir)        # <---panasionic用
+        route_map_Img = Route_map(base_file, file2, predicted_ship2, contours1, contours2, save_dir)        # <---panasionic用
     else:
-        Route_map(out_dir + "\\result.jpg", file2, predicted_ship2, contours1, contours2, save_dir)        # <---panasionic用
+        route_map_Img = Route_map(out_dir + "\\result.jpg", file2, predicted_ship2, contours1, contours2, save_dir)
+        #Route_map(out_dir + "\\result.jpg", file2, predicted_ship2, contours1, contours2, save_dir)        # <---panasionic用
     first_flag = False
+
+    return route_map_Img
 
             
 
+# ルート保存関数
+# route_directions : 取得した進路の始点と終点を格納した配列変数
+def save_route(route_directions, contours1, contours2):
+    global Route_num
+    global route_cnt
+    global static_point_num
+    route_cnt_preSum = route_cnt   #以前までのルート数（固定）
+    route_cnt_Sum = route_cnt + len(route_directions)   #現在の最終ルート数
+
+
+    if first_flag == True:
+        static_point_num.append(0)  #最初の値は0
+        for i in range(len(route_directions)):
+            Route_num[i].append(route_directions[i][0])
+            Route_num[i].append(len(contours1) + route_directions[i][1])
+            route_cnt += 1
+        static_point_num.append(len(contours1))
+            
     
+    else:
+        static_point_num.append(static_point_num[len(static_point_num) -1] + len(contours1))   #カウント保存用
+        for i in range(len(route_directions)):
+            exist_preShip_Flag = False      #フレーム前の画像に同一船が存在するか？
+
+            for j in range(route_cnt_preSum):
+                # フレーム前の船の終点とフレーム後の船の始点が同じならば、紐づける
+                if (Route_num[j][len(Route_num[j])-1] - static_point_num[len(static_point_num)-2]) == route_directions[i][0]:
+                    #print("A==" + str(len(Route_num[j])-1))
+                    Route_num[j].append(static_point_num[len(static_point_num) -1] + route_directions[i][1])
+
+                    exist_preShip_Flag = True
+
+                #異なれば、新しくデータを残す
+            if exist_preShip_Flag == False:
+                route_cnt += 1
+                Route_num[route_cnt -1].append(static_point_num[len(static_point_num) -2] + route_directions[i][0])
+                Route_num[route_cnt -1].append(static_point_num[len(static_point_num) -1] + route_directions[i][1])
+                
+    print("\n=================航路データ===========================")
+    print("先頭データ：" + str(static_point_num))
+    for i in range(route_cnt):
+        print(str(i) + "：" + str(Route_num[i]))
+
 
 
 
@@ -180,7 +252,7 @@ def encircle(file, save_dir):
 
 # 類似度を計算する。
 def similarity(contours1, contours2, save_dir):
-    fig = plt.figure()
+    #fig = plt.figure()
 
     matrix = np.empty((len(contours1), len(contours2)))
     for i, j in np.ndindex(*matrix.shape):
@@ -192,11 +264,13 @@ def similarity(contours1, contours2, save_dir):
             #print("i=" + str(i) + "\t,j=" + str(j) + "\t:船の形が線で表示されているため、適切な類似度ではありません")
             matrix[i, j] = 10000
 
+    """
     # 行列を可視化する。
     fig, ax = plt.subplots(figsize=(14, 14))
     ax = sns.heatmap(
         matrix, annot=True, cmap="Reds", ax=ax, fmt=".2f", annot_kws={"size": 15}
     )
+    """
 
     #fig.savefig(save_dir + "\\similarity.jpg")
     #plt.show()
@@ -205,7 +279,7 @@ def similarity(contours1, contours2, save_dir):
 
 # 距離を計算する。
 def distance(contours1, contours2, save_dir):
-    fig = plt.figure()
+    #fig = plt.figure()
 
     matrix = np.empty((len(contours1), len(contours2)))
     for i, j in np.ndindex(*matrix.shape):
@@ -215,11 +289,13 @@ def distance(contours1, contours2, save_dir):
         point2 = ((x2 + w2/2), (y2 + h2/2))
         matrix[i, j] = math.sqrt(math.fsum( (x - y)*(x - y) for x, y in zip(point1, point2)))
 
+    """
     # 行列を可視化する。
     fig, ax = plt.subplots(figsize=(14, 14))
     ax = sns.heatmap(
         matrix, annot=True, cmap="Blues", ax=ax, fmt=".2f", annot_kws={"size": 10}
     )
+    """
 
     #fig.savefig(save_dir + "\\distance.jpg")
     #plt.show()
@@ -311,11 +387,20 @@ def angle(file1, contours1, contours2, save_dir):
                 next_x, next_y, next_w, next_h = cv2.boundingRect(contours2[point])
                 next_position = [next_x + next_w/2, next_y + next_h/2]
 
-                matrix[i, point] = isInArea(img, save_dir, now_position, vec, next_position)
+                pass_Flag = False
+                if first_flag == False:
+                    for l in range(len(save_vec)):
+                        if len(save_vec[l][0]) != 0 and i == save_vec[l][0][1]:
+                            if np.dot(save_vec[l][1], vec) < 0:
+                                matrix[i, point] = False
+                                pass_Flag = True
+                    if pass_Flag == False:
+                        matrix[i, point] = isInArea(img, save_dir, now_position, vec, next_position)
 
         #arg = math.degrees(math.atan(h/w))
         #print("i:" + str(i) + ",    arg:" + str(arg))
-
+    
+    """
     fig = plt.figure()
 
     # 行列を可視化する。
@@ -323,6 +408,7 @@ def angle(file1, contours1, contours2, save_dir):
     ax = sns.heatmap(
         matrix, annot=True, cmap="Reds", ax=ax, fmt=".2f", annot_kws={"size": 15}
     )
+    """
 
     #fig.savefig(save_dir + "\\isInArea.jpg")
     #plt.show()
@@ -402,7 +488,7 @@ def line(base_file, next_file, predict_result, contours1, contours2, save_dir):
     #cv2.imwrite(".\\abc.jpg", base_img)
 
 
-
+practice_cnt = 0
 #船同士で線をつなぐ（全体）
 def Route_map(base_file, next_file, predict_result, contours1, contours2, save_dir):
     base_img = cv2.imread(base_file)
@@ -412,46 +498,57 @@ def Route_map(base_file, next_file, predict_result, contours1, contours2, save_d
     #update_time = datetime.datetime.fromtimestamp(t)
     #date, time = str(update_time).split()
 
-    
-    if first_flag == True:
-        global different_color
-        different_color = predict_result[0][0]      #色付けたい船の線
-    color = (200, 0, 0)
-    
-    
+    draw_route_Flag = False
+    draw_route = 170
+    global route_lastPoint
+    global draw_point
+    global draw_Arrow_point
+
+    if len(Route_num[draw_route]) != 0:
+        draw_route_Flag = True
+
+        if Route_num[draw_route][len(Route_num[draw_route])-1] == route_lastPoint:
+            draw_route_Flag = False
+
+        route_lastPoint = Route_num[draw_route][len(Route_num[draw_route]) -1]
 
     for i in range(len(predict_result)):
-        if different_color == predict_result[i][0]:
+        if (draw_route_Flag == True) and (predict_result[i][0] == Route_num[draw_route][len(Route_num[draw_route]) -2] - static_point_num[len(static_point_num) -2]):
             x1, y1, w1, h1 = cv2.boundingRect(contours1[predict_result[i][0]])
             x2, y2, w2, h2 = cv2.boundingRect(contours2[predict_result[i][1]])
-            cv2.arrowedLine(base_img, (int(x1+w1/2), int(y1+h1/2)), (int(x2+w2/2), int(y2+h2/2)), color, 3, tipLength=0.3)
-            behind_color = predict_result[i][1]
+            #cv2.arrowedLine(base_img, (int(x1+w1/2), int(y1+h1/2)), (int(x2+w2/2), int(y2+h2/2)), (0, 0, 255), 3, tipLength=0.3)
+            draw_point = [int(x1+w1/2), int(y1+h1/2), int(x2+w2/2), int(y2+h2/2)]
+            draw_Arrow_point.append(draw_point)
 
         else:
             x1, y1, w1, h1 = cv2.boundingRect(contours1[predict_result[i][0]])
             x2, y2, w2, h2 = cv2.boundingRect(contours2[predict_result[i][1]])
-            cv2.line(base_img, (int(x1+w1/2), int(y1+h1/2)), (int(x2+w2/2), int(y2+h2/2)), (0, 255, 0) , 3)
+            cv2.line(base_img, (int(x1+w1/2), int(y1+h1/2)), (int(x2+w2/2), int(y2+h2/2)), (0, 153, 119) , 3)   
+
+    """
+    if (draw_route_Flag == True) and (route_lastPoint == 47 or route_lastPoint == 57):
+        global practice_cnt
+        cv2.imwrite(save_dir + "\result.jpg", base_img)
+        cv2.imwrite(save_dir + "\practice_" + str(practice_cnt) + ".jpg", base_img)
+        practice_cnt += 1
+    """
+    cv2.imwrite(save_dir + "/result.jpg", base_img)
+    return base_img
 
 
+
+
+def draw_ArrowImg(route_map, save_dir):
+    arrow_img = np.array([[[255 for i in range(3)] for j in range(len(route_map[0]))] for k in range(len(route_map))], dtype = 'uint8')
+    #result_img = np.array([[[0 for i in range(3)] for j in range(len(route_map[0]))] for k in range(len(route_map))])
     
-    #try:
-    #    different_color = behind_color
-    #except:
-    #    color = (0, 255, 0)
-    #    pass
-    
+    # 選択した航路を後から上書きして表示させる
+    for i in range(len(draw_Arrow_point)):
+        cv2.arrowedLine(arrow_img, (draw_Arrow_point[i][0], draw_Arrow_point[i][1]), (draw_Arrow_point[i][2], draw_Arrow_point[i][3]), (25, 165, 0), 3, tipLength=0.3)
 
-    #cv2.putText(base_img, date.ljust(20), (int(len(base_img[0])*5/7), int(len(base_img) *19/20 -20)), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 0, 0), 3)
-    #cv2.putText(base_img, time.ljust(20), (int(len(base_img[0])*5/7), int(len(base_img) *19/20)), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 0, 0), 3)
-    #base_img = cv2.cvtColor(base_img, cv2.COLOR_BGR2RGB)
-
-    #global cnt
-    #cnt += 1
-    cv2.imwrite(save_dir + "\\result.jpg", base_img)
-
-    #cv2.imwrite(save_dir + ".\\abc.jpg", base_img)
-
-
+    cv2.imwrite(save_dir + "/arrow.jpg", arrow_img)
+    result_img = cv2.addWeighted(route_map, 0.3, arrow_img, 0.7, 2.2)
+    cv2.imwrite(save_dir + "/result.jpg", result_img)
 
 
 
